@@ -51,3 +51,8 @@ export async function requireOrgAdmin(): Promise<OrgContext> {
   }
   return ctx;
 }
+
+/** Runs read queries as the signed-in user so RLS applies (defense in depth). */
+export function withUserDb<T>(ctx: OrgContext, fn: (tx: import("@/lib/db").Db) => Promise<T>): Promise<T> {
+  return asUser(getDb(), ctx.user.id, fn);
+}

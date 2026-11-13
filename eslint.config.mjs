@@ -7,6 +7,14 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "coverage/**"]),
   {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
     // CLAUDE.md: all Anthropic calls go through ONE module (src/lib/ai.ts).
     files: ["**/*.{ts,tsx,js,mjs}"],
     ignores: ["src/lib/ai.ts"],

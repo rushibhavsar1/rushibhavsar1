@@ -11,6 +11,7 @@ import { getDb, getPool } from "@/lib/db";
 import { env, requireEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createBossQueue, ensureQueues, type JobName } from "@/lib/queue";
+import { telegramFromEnv } from "@/lib/telegram";
 import type { WorkerDeps } from "@/server/deps";
 import { handlers } from "@/worker/handlers";
 
@@ -30,6 +31,7 @@ async function main() {
     db,
     queue: createBossQueue(async () => boss),
     ai: createAi({ db }),
+    telegram: telegramFromEnv(),
   };
 
   for (const [name, handler] of Object.entries(handlers) as Array<[JobName, (d: WorkerDeps, data: unknown) => Promise<unknown>]>) {

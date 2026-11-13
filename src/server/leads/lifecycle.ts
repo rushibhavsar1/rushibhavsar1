@@ -93,3 +93,20 @@ export async function getLead(db: Db, orgId: string, leadId: string): Promise<Le
   const { rows } = await db.query<Lead>("select * from public.leads where id = $1 and org_id = $2", [leadId, orgId]);
   return rows[0] ?? null;
 }
+
+/** Owner answered personally (e.g. a support question): close it, no follow-ups. */
+export async function markLeadHandled(db: Db, orgId: string, leadId: string, by: string | null): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.query(
+      `update public.leads set status = 'replied', followups_stopped_at = coalesce(followups_stopped_at, now())
+        where id = $1 and org_id = $2 and status in ('new', 'drafted', 'awaiting_approval')`,
+      [leadId, orgId],
+    );
+    await tx.query(
+      `update public.drafts set status = 'cancelled'
+        where lead_id = $1 and org_id = $2 and status = 'pending_approval'`,
+      [leadId, orgId],
+    );
+    await recordEvent(tx, orgId, "lead_handled_manually", { by }, leadId);
+  });
+}

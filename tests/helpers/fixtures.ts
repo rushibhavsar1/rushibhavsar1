@@ -40,3 +40,24 @@ export async function insertLead(
   );
   return rows[0]!.id;
 }
+
+export async function insertDraft(
+  db: Db,
+  orgId: string,
+  leadId: string,
+  overrides: Partial<{ kind: string; status: string; subject: string; body: string }> = {},
+): Promise<string> {
+  const { rows } = await db.query<{ id: string }>(
+    `insert into public.drafts (lead_id, org_id, kind, subject, body, status, model)
+     values ($1, $2, $3, $4, $5, $6, 'claude-sonnet-5-5') returning id`,
+    [
+      leadId,
+      orgId,
+      overrides.kind ?? "first_reply",
+      overrides.subject ?? "Teeth whitening next week",
+      overrides.body ?? "Hi Jane, book here: https://cal.com/brightsmile/intro",
+      overrides.status ?? "pending_approval",
+    ],
+  );
+  return rows[0]!.id;
+}

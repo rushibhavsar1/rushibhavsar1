@@ -34,3 +34,37 @@ export class FakeQueue implements Queue {
     this.jobs = [];
   }
 }
+
+import type { InlineButton, Telegram } from "@/lib/telegram";
+
+export interface TelegramCall {
+  method: "send" | "edit" | "answer";
+  chatId?: string;
+  messageId?: string;
+  text?: string;
+  buttons?: InlineButton[][];
+  forceReply?: boolean;
+}
+
+/** Records Bot API calls instead of hitting Telegram. */
+export class FakeTelegram implements Telegram {
+  calls: TelegramCall[] = [];
+  private seq = 100;
+
+  async sendMessage(chatId: string, html: string, opts: { buttons?: InlineButton[][]; forceReply?: boolean } = {}) {
+    this.calls.push({ method: "send", chatId, text: html, buttons: opts.buttons, forceReply: opts.forceReply });
+    return { messageId: String(++this.seq) };
+  }
+  async editMessage(chatId: string, messageId: string, html: string, opts: { buttons?: InlineButton[][] } = {}) {
+    this.calls.push({ method: "edit", chatId, messageId, text: html, buttons: opts.buttons });
+  }
+  async answerCallback(_id: string, text?: string) {
+    this.calls.push({ method: "answer", text });
+  }
+  sent(): TelegramCall[] {
+    return this.calls.filter((c) => c.method === "send");
+  }
+  clear(): void {
+    this.calls = [];
+  }
+}

@@ -1,0 +1,27 @@
+# Runs the web app and the worker. Works locally (`docker compose up --build`)
+# and as a "Docker Compose" resource in Coolify. Configure with a .env file
+# (see .env.example) or Coolify's environment variables.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - worker
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      RUN_MIGRATIONS: "true"
+    restart: unless-stopped
+    stop_grace_period: 40s

@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+# DeskPilot background worker (pg-boss jobs: AI, notifications, sending, follow-ups, reports).
+
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+RUN npm run build:worker && npm prune --omit=dev --no-audit --no-fund
+
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production \
+    RUN_MIGRATIONS=true
+RUN groupadd --system --gid 1001 app && useradd --system --uid 1001 --gid app --no-create-home app
+COPY --from=build --chown=app:app /app/package.json ./package.json
+COPY --from=build --chown=app:app /app/node_modules ./node_modules
+COPY --from=build --chown=app:app /app/dist ./dist
+COPY --from=build --chown=app:app /app/supabase/migrations ./supabase/migrations
+COPY --chown=app:app docker/worker-entrypoint.sh ./worker-entrypoint.sh
+USER app
+# The worker has no HTTP port; Docker restarts it if the process exits.
+CMD ["sh", "./worker-entrypoint.sh"]

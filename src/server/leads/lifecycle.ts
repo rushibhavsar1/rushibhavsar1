@@ -69,7 +69,15 @@ export async function markLeadBooked(
       [leadId, orgId],
     );
     await recordEvent(tx, orgId, "lead_booked", booking, leadId);
-    return stopFollowups(tx, orgId, leadId, "booked");
+    // A pending first reply ("book here!") is pointless once they've booked.
+    const firstReply = await tx.query<{ id: string }>(
+      `update public.drafts set status = 'cancelled'
+        where lead_id = $1 and org_id = $2 and kind = 'first_reply' and status in ('pending_approval', 'approved')
+        returning id`,
+      [leadId, orgId],
+    );
+    const followups = await stopFollowups(tx, orgId, leadId, "booked");
+    return [...firstReply.rows.map((r) => r.id), ...followups];
   });
 }
 

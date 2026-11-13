@@ -13,7 +13,7 @@ import {
 } from "@/server/approvals";
 import { draftWarnings } from "@/server/drafts";
 import { getLead, markLeadResponded } from "@/server/leads/lifecycle";
-import { draftButtons, draftMessage, editPrompt } from "@/server/telegram/messages";
+import { draftButtons, draftMessage, editPrompt, fitsTelegramPreview } from "@/server/telegram/messages";
 import { consumeLinkCode } from "@/server/telegram/link";
 import { DRAFT_COLUMNS, type Draft } from "@/server/types";
 
@@ -143,6 +143,11 @@ async function handleCallback(
   try {
     switch (action) {
       case "a": {
+        // Never approve text the owner could not see in full in Telegram.
+        if (!fitsTelegramPreview(draft)) {
+          await deps.telegram.answerCallback(cb.id, "Too long to approve here — please use the web inbox.");
+          return "too_long";
+        }
         await approveDraft(deps, draft.org_id, draft.id, actor);
         await deps.telegram.answerCallback(cb.id, "Approved — sending now");
         await deps.telegram.editMessage(chatId, messageId, `${original}\n\n✅ <b>Approved</b> — sending…`);

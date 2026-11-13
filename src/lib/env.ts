@@ -38,6 +38,9 @@ const schema = z.object({
   STRIPE_PRICE_PRO: optional,
   STRIPE_TRIAL_DAYS: z.coerce.number().int().min(0).max(90).default(14),
 
+  /** How many reverse proxies in front of the app append to X-Forwarded-For (Traefik = 1). */
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(1).max(5).default(1),
+
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
   /** Local hour (in each business's time zone) on Monday when the weekly report goes out. */
   WEEKLY_REPORT_HOUR: z.coerce.number().int().min(0).max(23).default(8),

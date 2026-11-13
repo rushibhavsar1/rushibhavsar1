@@ -99,6 +99,21 @@ describe("Telegram bot", () => {
     expect(queue.jobs).toHaveLength(0);
   });
 
+  it("won't approve from Telegram a draft too long to show in full", async () => {
+    const leadId = await insertLead(t.db, org.id);
+    const draftId = await insertDraft(t.db, org.id, leadId, { body: `Hi!\n${"x".repeat(3000)}\nPay to IBAN XX00 0000` });
+    const { draftButtons } = await import("@/server/telegram/messages");
+    const { getDraft } = await import("@/server/drafts");
+    const draft = (await getDraft(t.db, org.id, draftId))!;
+    expect(draftButtons(draft).flat().map((b) => b.callback_data)).not.toContain(`a:${draftId}`);
+
+    // Even with a forged/old button, the server refuses.
+    expect(await handleTelegramUpdate(deps(), callback(`a:${draftId}`))).toBe("too_long");
+    const { rows } = await t.db.query<{ status: string }>("select status from public.drafts where id = $1", [draftId]);
+    expect(rows[0]!.status).toBe("pending_approval");
+    expect(queue.jobs).toHaveLength(0);
+  });
+
   it("rejects a draft", async () => {
     const draftId = await insertDraft(t.db, org.id, await insertLead(t.db, org.id));
     expect(await handleTelegramUpdate(deps(), callback(`r:${draftId}`))).toBe("rejected");

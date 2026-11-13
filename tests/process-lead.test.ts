@@ -99,6 +99,29 @@ describe("process_lead job", () => {
     expect(ev.rows[0]!.payload.reason).toBe("cap_reached");
   });
 
+  it("enforces the plan's monthly lead limit on real leads only (spam never uses quota)", async () => {
+    const small = (await createOrgFixture(t.db, { plan: "starter" })).org; // 100 leads / month
+    await t.db.query(
+      `insert into public.leads (org_id, email, message, classification, status)
+       select $1, 'x' || g || '@example.com', 'junk', 'spam', 'lost' from generate_series(1, 150) g`,
+      [small.id],
+    );
+    const first = await insertLead(t.db, small.id);
+    const { deps: d1 } = deps("lead");
+    expect(await processLead(d1, { leadId: first, orgId: small.id })).toBe("drafted");
+
+    await t.db.query(
+      `insert into public.leads (org_id, email, message, classification, status)
+       select $1, 'r' || g || '@example.com', 'real', 'lead', 'replied' from generate_series(1, 99) g`,
+      [small.id],
+    );
+    const over = await insertLead(t.db, small.id);
+    const { api, deps: d2 } = deps("lead");
+    expect(await processLead(d2, { leadId: over, orgId: small.id })).toBe("lead_limit");
+    expect(api.requests.map((r) => r.body.model)).toEqual(["claude-haiku-5-5"]); // classified, not drafted
+    expect((await leadState(over)).drafts).toHaveLength(0);
+  });
+
   it("ignores leads that were already handled", async () => {
     const leadId = await insertLead(t.db, org.id, { status: "replied" });
     const { api, deps: d } = deps("lead");

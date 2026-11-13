@@ -1,9 +1,21 @@
-/** Only allow same-site relative redirects (prevents open redirects via ?next=). */
+const BASE = "http://deskpilot.invalid";
+
+/**
+ * Only allow same-site relative redirects (prevents open redirects via ?next=).
+ * Browsers strip tabs/newlines and treat backslashes as slashes, so the path is
+ * limited to printable ASCII and must resolve to our own origin.
+ */
 export function safeNextPath(next: string | null | undefined, fallback = "/dashboard"): string {
-  if (!next || typeof next !== "string") return fallback;
-  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  if (/[\r\n]/.test(next)) return fallback;
-  return next;
+  if (!next || typeof next !== "string" || next.length > 2000) return fallback;
+  if (!/^\/[\x21-\x7e]*$/.test(next)) return fallback;
+  if (next.startsWith("//") || next.startsWith("/\\")) return fallback;
+  try {
+    const url = new URL(next, BASE);
+    if (url.origin !== BASE) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
 }
 
 /** Absolute URL on this app. */

@@ -19,7 +19,7 @@ export const CORS_HEADERS: Record<string, string> = {
 
 export const LIMITS = {
   perIp: { limit: 5, windowSeconds: 600 },
-  perOrg: { limit: 120, windowSeconds: 3600 },
+  perOrg: { limit: 300, windowSeconds: 3600 },
 };
 
 function reply(status: number, body: unknown, extra: Record<string, string> = {}): Response {

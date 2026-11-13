@@ -8,6 +8,17 @@ const KIND_LABEL: Record<Draft["kind"], string> = {
   followup_2: "Follow-up #2 (day 5)",
 };
 
+/**
+ * Longest body shown in full in Telegram (messages max out at 4096 chars).
+ * Longer drafts can't be approved from Telegram: the owner must see every
+ * word they approve, so those go to the web inbox.
+ */
+export const TELEGRAM_BODY_MAX = 2600;
+
+export function fitsTelegramPreview(draft: Pick<Draft, "body">): boolean {
+  return draft.body.length <= TELEGRAM_BODY_MAX;
+}
+
 /** Telegram rejects localhost URLs in buttons, so only link out on https. */
 function webButton(path: string): InlineButton[] {
   const url = appUrl(path);
@@ -26,11 +37,14 @@ export function draftMessage(lead: Lead, draft: Draft, warnings: string[]): stri
     `From: ${leadLine(lead)}`,
     "",
     "<b>Their message</b>",
-    `<blockquote>${escapeHtml(truncate(lead.message, 1200))}</blockquote>`,
+    `<blockquote>${escapeHtml(truncate(lead.message, 800))}</blockquote>`,
     "<b>Draft reply</b>",
     `Subject: ${escapeHtml(draft.subject)}`,
-    `<pre>${escapeHtml(truncate(draft.body, 2000))}</pre>`,
+    `<pre>${escapeHtml(truncate(draft.body, TELEGRAM_BODY_MAX))}</pre>`,
   ];
+  if (!fitsTelegramPreview(draft)) {
+    parts.push("📏 This draft is too long to show in full here — review and approve it in the web inbox.");
+  }
   if (warnings.length > 0) {
     parts.push(`⚠️ ${warnings.map(escapeHtml).join("\n⚠️ ")}`);
   }
@@ -38,13 +52,12 @@ export function draftMessage(lead: Lead, draft: Draft, warnings: string[]): stri
   return parts.join("\n");
 }
 
-export function draftButtons(draft: Pick<Draft, "id" | "kind">): InlineButton[][] {
+export function draftButtons(draft: Pick<Draft, "id" | "kind" | "body">): InlineButton[][] {
+  const first: InlineButton[] = fitsTelegramPreview(draft)
+    ? [{ text: "✅ Approve & send", callback_data: `a:${draft.id}` }]
+    : [];
   const rows: InlineButton[][] = [
-    [
-      { text: "✅ Approve & send", callback_data: `a:${draft.id}` },
-      { text: "✏️ Edit", callback_data: `e:${draft.id}` },
-      { text: "🗑 Reject", callback_data: `r:${draft.id}` },
-    ],
+    [...first, { text: "✏️ Edit", callback_data: `e:${draft.id}` }, { text: "🗑 Reject", callback_data: `r:${draft.id}` }],
   ];
   if (draft.kind !== "first_reply") {
     rows.push([{ text: "🛑 They replied or booked — stop follow-ups", callback_data: `s:${draft.id}` }]);
@@ -77,7 +90,7 @@ export function editPrompt(lead: Lead, draft: Draft): string {
     "Your text replaces the whole body. The subject stays the same.",
     "",
     "Current text:",
-    `<pre>${escapeHtml(truncate(draft.body, 3000))}</pre>`,
+    `<pre>${escapeHtml(truncate(draft.body, TELEGRAM_BODY_MAX))}</pre>`,
     `<i>ref:${draft.id}</i>`,
   ].join("\n");
 }

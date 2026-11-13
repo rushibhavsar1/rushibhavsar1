@@ -101,6 +101,7 @@ STRIPE_PRICE_STARTER=price_...
 STRIPE_PRICE_GROWTH=price_...
 STRIPE_PRICE_PRO=price_...
 STRIPE_TRIAL_DAYS=14
+TRUSTED_PROXY_HOPS=1
 WORKER_CONCURRENCY=4
 WEEKLY_REPORT_HOUR=8
 LOG_LEVEL=info
@@ -112,6 +113,7 @@ Notes:
 
 - Secrets are only read on the server. Nothing except the Supabase URL/anon key has the `NEXT_PUBLIC_` prefix, and even those are read at runtime, so one image works for any environment.
 - Generate secrets with `openssl rand -hex 32`.
+- `TRUSTED_PROXY_HOPS` tells the rate limiter which `X-Forwarded-For` entry is real: 1 behind Coolify's Traefik, 2 if you put a CDN (e.g. Cloudflare) in front. Never expose the containers' port 3000 directly to the internet — traffic must come through the proxy, or clients could fake their IP.
 - Connection budget: each web and worker container opens up to `DATABASE_POOL_MAX` (+ a few for pg-boss). Stay under your Supabase plan's connection limit when you scale.
 
 ---

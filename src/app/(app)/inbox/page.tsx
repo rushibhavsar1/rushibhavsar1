@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Inbox" };
 const KIND_LABEL = { first_reply: "First reply", followup_1: "Follow-up · day 2", followup_2: "Follow-up · day 5" };
 const REASON_LABEL = {
   support: "Support question — answer personally",
-  ai_blocked: "AI paused (billing or monthly budget)",
+  ai_blocked: "AI paused (billing, monthly AI budget or lead limit)",
   ai_refused: "AI could not draft a reply",
   rejected: "You rejected the draft",
   waiting: "Waiting for AI",

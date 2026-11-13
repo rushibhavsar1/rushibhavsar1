@@ -251,6 +251,8 @@ export interface DraftResult {
 }
 
 const URL_RE = /\bhttps?:\/\/[^\s<>()"']+/gi;
+/** Replies are asked to be under ~180 words; much longer suggests something went wrong. */
+const LONG_DRAFT_CHARS = 2000;
 
 /** Flags drafts that break the owner's rules (they still go to approval). */
 export function checkDraft(body: string, knowledge: KnowledgeMap, kind: DraftKind): string[] {
@@ -270,6 +272,9 @@ export function checkDraft(body: string, knowledge: KnowledgeMap, kind: DraftKin
   }
   if (kind === "first_reply" && booking && !links.some((l) => l.replace(/[.,;:!?]+$/, "").replace(/\/+$/, "") === booking)) {
     warnings.push("Does not include your booking link");
+  }
+  if (body.length > LONG_DRAFT_CHARS) {
+    warnings.push("Unusually long — read the whole email before approving");
   }
   return warnings;
 }

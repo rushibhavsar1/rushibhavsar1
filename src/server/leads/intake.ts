@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Db } from "@/lib/db";
-import { billingAllowsAi, planLimits } from "@/lib/plans";
+import { billingAllowsAi } from "@/lib/plans";
 import type { Queue } from "@/lib/queue";
 import { recordEvent } from "@/server/events";
 import { markLeadResponded } from "@/server/leads/lifecycle";
@@ -37,12 +37,17 @@ export const leadInput = z.object({
 export type LeadInput = z.input<typeof leadInput>;
 
 export type IntakeResult =
-  | { status: "accepted"; leadId: string; queued: boolean; reason?: "unpaid" | "lead_limit" }
+  | { status: "accepted"; leadId: string; queued: boolean; reason?: "unpaid" }
   | { status: "ignored" };
 
+/**
+ * Leads that count toward the plan's monthly limit: real leads (classified
+ * "lead" by the AI) this calendar month. Spam and junk never use up the quota.
+ */
 export async function countLeadsThisMonth(db: Db, orgId: string): Promise<number> {
   const { rows } = await db.query<{ n: number }>(
-    "select count(*)::int as n from public.leads where org_id = $1 and created_at >= date_trunc('month', now())",
+    `select count(*)::int as n from public.leads
+      where org_id = $1 and classification = 'lead' and created_at >= date_trunc('month', now())`,
     [orgId],
   );
   return rows[0]?.n ?? 0;
@@ -96,11 +101,8 @@ export async function intakeLead(
     await recordEvent(db, org.id, "ai_skipped", { reason: "unpaid" }, leadId);
     return { status: "accepted", leadId, queued: false, reason: "unpaid" };
   }
-  const used = await countLeadsThisMonth(db, org.id);
-  if (used > planLimits(org.plan).monthlyLeadLimit) {
-    await recordEvent(db, org.id, "ai_skipped", { reason: "lead_limit", used }, leadId);
-    return { status: "accepted", leadId, queued: false, reason: "lead_limit" };
-  }
+  // The monthly lead limit is checked by the worker after classification,
+  // so spam and junk submissions can't use up the quota.
 
   await queue.send("process_lead", { leadId, orgId: org.id }, { singletonKey: `process_lead:${leadId}` });
   return { status: "accepted", leadId, queued: true };

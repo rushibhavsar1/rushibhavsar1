@@ -2,9 +2,11 @@ import { AiBlockedError, AiRefusalError, type Ai } from "@/lib/ai";
 import type { Db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import type { JobPayloads, Queue } from "@/lib/queue";
+import { planLimits } from "@/lib/plans";
 import { insertDraft } from "@/server/drafts";
 import { recordEvent } from "@/server/events";
 import { getKnowledgeFiles } from "@/server/knowledge";
+import { countLeadsThisMonth } from "@/server/leads/intake";
 import { getLead } from "@/server/leads/lifecycle";
 import { getOrganization } from "@/server/orgs";
 import type { LeadClassification } from "@/server/types";
@@ -23,6 +25,7 @@ export type ProcessLeadOutcome =
   | "drafted"
   | "draft_exists"
   | "blocked"
+  | "lead_limit"
   | "refused";
 
 /**
@@ -63,6 +66,14 @@ export async function processLead(deps: PipelineDeps, job: JobPayloads["process_
         { singletonKey: `support:${lead.id}` },
       );
       return "support";
+    }
+
+    // Plan limit: real leads this month (this one included, since it's now classified).
+    const used = await countLeadsThisMonth(db, org.id);
+    const limit = planLimits(org.plan).monthlyLeadLimit;
+    if (used > limit) {
+      await recordEvent(db, org.id, "ai_skipped", { reason: "lead_limit", used, limit }, lead.id);
+      return "lead_limit";
     }
 
     const draft = await ai.draftReply(org, knowledge, { lead, kind: "first_reply" });

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { handleLeadOptions, handleLeadPost, LIMITS } from "@/server/http/lead-endpoint";
+import { clientIp } from "@/server/http/request";
 import { hitRateLimit } from "@/server/rate-limit";
 import type { Organization } from "@/server/types";
 import { createTestDb, type TestDatabase } from "./helpers/db";
@@ -113,6 +114,20 @@ describe("POST /api/leads/:orgKey", () => {
     expect(statuses.at(-1)).toBe(429);
   });
 
+  it("can't dodge the IP limit by spoofing X-Forwarded-For", async () => {
+    // Our proxy appends the real client IP last; the client controls what comes before it.
+    const statuses: number[] = [];
+    for (let i = 0; i < LIMITS.perIp.limit + 1; i++) {
+      const res = await handleLeadPost(
+        post(org.org_key, { email: `s${i}@example.com`, message: "hi" }, { ip: `10.9.9.${i}, 198.51.100.200` }),
+        org.org_key,
+        deps(),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses.at(-1)).toBe(429);
+  });
+
   it("stores leads for unpaid orgs but does not run AI", async () => {
     const res = await handleLeadPost(
       post(unpaid.org_key, { email: "x@example.com", message: "Hello" }),
@@ -161,6 +176,16 @@ describe("POST /api/leads/:orgKey", () => {
     const res = handleLeadOptions();
     expect(res.status).toBe(204);
     expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+  });
+});
+
+describe("clientIp", () => {
+  const req = (xff: string) => new Request("http://x", { headers: { "x-forwarded-for": xff } });
+  it("trusts only the entry added by our own proxies", () => {
+    expect(clientIp(req("6.6.6.6, 203.0.113.5"), 1)).toBe("203.0.113.5");
+    expect(clientIp(req("6.6.6.6, 203.0.113.5, 10.0.0.2"), 2)).toBe("203.0.113.5");
+    expect(clientIp(req("203.0.113.5"), 2)).toBe("203.0.113.5");
+    expect(clientIp(new Request("http://x", { headers: { "x-real-ip": "203.0.113.7" } }), 1)).toBe("203.0.113.7");
   });
 });
 

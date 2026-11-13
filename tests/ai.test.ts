@@ -181,6 +181,11 @@ describe("checkDraft", () => {
     ]);
   });
 
+  it("flags unusually long drafts", () => {
+    const long = `Book: https://cal.com/biz/intro\n${"word ".repeat(500)}`;
+    expect(checkDraft(long, knowledge, "first_reply")).toContain("Unusually long — read the whole email before approving");
+  });
+
   it("accepts a clean draft", () => {
     expect(checkDraft("Book here: https://cal.com/biz/intro.", knowledge, "first_reply")).toEqual([]);
     // Substrings are not matches ("cheapest" is not "cheap").

@@ -1,11 +1,21 @@
-/** Client IP as seen by the reverse proxy (Coolify/Traefik sets X-Forwarded-For). */
-export function clientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first.slice(0, 64);
+/**
+ * Client IP for rate limiting.
+ *
+ * X-Forwarded-For is a list the client can pre-fill, so only entries added by
+ * our own proxies can be trusted: we take the one `trustedHops` from the right.
+ * Behind Coolify (Traefik) that is 1; put a CDN in front and it becomes 2
+ * (set TRUSTED_PROXY_HOPS).
+ */
+export function clientIp(req: Request, trustedHops = Number(process.env.TRUSTED_PROXY_HOPS ?? 1)): string {
+  const hops = Number.isInteger(trustedHops) && trustedHops >= 1 ? trustedHops : 1;
+  const forwarded = (req.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (forwarded.length > 0) {
+    return forwarded[Math.max(0, forwarded.length - hops)]!.slice(0, 64);
   }
-  return (req.headers.get("x-real-ip") ?? "unknown").slice(0, 64);
+  return (req.headers.get("x-real-ip") ?? "unknown").trim().slice(0, 64);
 }
 
 export class BodyTooLargeError extends Error {}

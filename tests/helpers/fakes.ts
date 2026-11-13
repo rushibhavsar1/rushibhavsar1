@@ -68,3 +68,33 @@ export class FakeTelegram implements Telegram {
     this.calls = [];
   }
 }
+
+import { EmailError, type DomainInfo, type Mailer, type OutgoingEmail } from "@/lib/email";
+
+/** Records outgoing emails and simulates Resend domains. */
+export class FakeMailer implements Mailer {
+  sent: OutgoingEmail[] = [];
+  failWith: EmailError | null = null;
+  domainStatus: DomainInfo["status"] = "pending";
+  verifyCalls = 0;
+
+  async send(email: OutgoingEmail) {
+    if (this.failWith) throw this.failWith;
+    this.sent.push(email);
+    return { id: `re_${this.sent.length}` };
+  }
+  async createDomain(name: string): Promise<DomainInfo> {
+    return { id: `dom_${name}`, name, status: "not_started", records: [this.record()] };
+  }
+  async getDomain(id: string): Promise<DomainInfo> {
+    return { id, name: id.replace(/^dom_/, ""), status: this.domainStatus, records: [this.record()] };
+  }
+  async verifyDomain() {
+    this.verifyCalls += 1;
+  }
+  private record() {
+    return { record: "DKIM", type: "TXT", name: "resend._domainkey", value: "p=MIGf...", status: "pending" };
+  }
+}
+
+export { EmailError };

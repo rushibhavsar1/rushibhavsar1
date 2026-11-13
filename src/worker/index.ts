@@ -7,6 +7,7 @@
  */
 import { PgBoss } from "pg-boss";
 import { createAi } from "@/lib/ai";
+import { mailerFromEnv } from "@/lib/email";
 import { getDb, getPool } from "@/lib/db";
 import { env, requireEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -32,6 +33,7 @@ async function main() {
     queue: createBossQueue(async () => boss),
     ai: createAi({ db }),
     telegram: telegramFromEnv(),
+    mailer: mailerFromEnv(),
   };
 
   for (const [name, handler] of Object.entries(handlers) as Array<[JobName, (d: WorkerDeps, data: unknown) => Promise<unknown>]>) {

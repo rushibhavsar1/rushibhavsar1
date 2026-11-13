@@ -38,6 +38,7 @@ Every Monday at 8:00 (each business's local time) owners get a one-page weekly r
 | `npm run test` | run tests |
 | `npm run typecheck` | run the TypeScript checker |
 | `npm run db:migrate` | apply Supabase migrations |
+| `npm run db:seed -- --email you@example.com` | load demo data for local development (see below) |
 | `npm run lint` | ESLint |
 | `npm run check` | everything CI runs: typecheck, lint, tests, web + worker builds |
 | `npm run telegram:set-webhook` | register the Telegram webhook (needs a public https `APP_URL`) |
@@ -48,9 +49,21 @@ Every Monday at 8:00 (each business's local time) owners get a one-page weekly r
    `postgresql://postgres:postgres@127.0.0.1:54322/postgres` as `DATABASE_URL`).
 2. `cp .env.example .env.local` and fill in at least the Supabase values, `DATABASE_URL` and `ANTHROPIC_API_KEY`.
 3. `npm ci && npm run db:migrate`
-4. Run `npm run dev` and `npm run worker` in two terminals, open http://localhost:3000, sign up.
-5. To test the AI without paying via Stripe, mark your org as paid in SQL:
-   `update organizations set plan = 'starter', subscription_status = 'active' where name = '…';`
+4. Run `npm run dev` and `npm run worker` in two terminals, open http://localhost:3000 and sign up.
+5. Load demo data for your account:
+
+   ```bash
+   npm run db:seed -- --email you@example.com            # demo business + 12 leads in every state (no AI cost)
+   npm run db:seed -- --email you@example.com --with-ai  # + 8 tricky enquiries drafted by the real AI
+   npm run db:seed -- --email you@example.com --reset    # start the demo data over
+   ```
+
+   The seed creates "Bright Smile Dental (demo)" (or fills your existing business without overwriting
+   your knowledge files), marks onboarding done, and puts an org that isn't billed through Stripe on a
+   Starter trial so AI replies run locally. Every demo lead uses an `@example.com` address, so approving
+   a demo draft can never email a real person. The `--with-ai` enquiries (price haggling, Spanish, a
+   prompt-injection attempt, a dental emergency, "hi", off-topic, an unoffered service, a phishing link)
+   are the quickest way to check reply quality and cost (see the `llm_usage` table).
 
 The test suite needs no external services: it runs real Postgres in-process (PGlite),
 applies the migrations, and mocks Anthropic (at the HTTP layer), Resend, Telegram and Stripe.

@@ -3,34 +3,8 @@ import { join } from "node:path";
 import { PGlite, type Transaction } from "@electric-sql/pglite";
 import type { Db } from "@/lib/db";
 
-/**
- * The bits of a Supabase database our migrations rely on: the auth schema,
- * auth.uid(), and the anon/authenticated/service_role roles.
- */
-const SUPABASE_SHIM = `
-create role anon nologin;
-create role authenticated nologin;
-create role service_role nologin bypassrls;
-create schema auth;
-create table auth.users (
-  id uuid primary key default gen_random_uuid(),
-  email text unique,
-  created_at timestamptz not null default now()
-);
-create or replace function auth.uid() returns uuid language sql stable as $$
-  select coalesce(
-    nullif(current_setting('request.jwt.claim.sub', true), ''),
-    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
-  )::uuid
-$$;
-grant usage on schema public to anon, authenticated, service_role;
-grant usage on schema auth to anon, authenticated, service_role;
-grant execute on function auth.uid() to anon, authenticated, service_role;
--- Mimic Supabase's permissive default privileges so the migration has to
--- tighten them itself.
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
-`;
+/** The bits of a Supabase database our migrations rely on (see supabase-shim.sql). */
+const SUPABASE_SHIM = readFileSync(join(process.cwd(), "tests", "helpers", "supabase-shim.sql"), "utf8");
 
 function adapter(conn: PGlite | Transaction): Db {
   const self: Db = {

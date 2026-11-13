@@ -32,7 +32,7 @@
   var endpoint;
   try {
     endpoint = new URL("/api/leads/" + orgKey, script.src).toString();
-  } catch (_e) {
+  } catch {
     return;
   }
 

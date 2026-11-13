@@ -39,8 +39,8 @@ const schema = z.object({
   STRIPE_TRIAL_DAYS: z.coerce.number().int().min(0).max(90).default(14),
 
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
-  WEEKLY_REPORT_CRON: z.string().default("0 8 * * 1"),
-  WEEKLY_REPORT_TZ: z.string().default("UTC"),
+  /** Local hour (in each business's time zone) on Monday when the weekly report goes out. */
+  WEEKLY_REPORT_HOUR: z.coerce.number().int().min(0).max(23).default(8),
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });

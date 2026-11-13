@@ -12,6 +12,7 @@ export interface JobPayloads {
   notify_support_question: { leadId: string; orgId: string };
   weekly_report: Record<string, never>;
   weekly_report_org: { orgId: string; weekStart: string };
+  maintenance: Record<string, never>;
 }
 export type JobName = keyof JobPayloads;
 
@@ -23,6 +24,7 @@ export const JOB_NAMES: JobName[] = [
   "notify_support_question",
   "weekly_report",
   "weekly_report_org",
+  "maintenance",
 ];
 
 export interface SendJobOptions {

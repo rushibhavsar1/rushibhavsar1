@@ -35,8 +35,19 @@ function Meter({ label, used, limit, format }: { label: string; used: number; li
           {format(used)} / {format(limit)}
         </span>
       </div>
-      <div className="mt-1 h-2 rounded-full bg-slate-200" role="meter" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-        <div className={`h-2 rounded-full ${pct >= 90 ? "bg-red-500" : "bg-brand-600"}`} style={{ width: `${pct}%` }} />
+      {/* Track is a lighter step of the same ramp; the fill carries severity. */}
+      <div
+        className={`mt-1 h-2 rounded-full ${pct >= 90 ? "bg-red-100" : pct >= 75 ? "bg-amber-100" : "bg-brand-100"}`}
+        role="meter"
+        aria-label={label}
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className={`h-2 rounded-full ${pct >= 90 ? "bg-red-600" : pct >= 75 ? "bg-amber-500" : "bg-brand-600"}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );

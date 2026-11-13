@@ -51,6 +51,11 @@ async function main() {
     });
   }
 
+  // Cron schedules (stored in Postgres; safe to call on every start).
+  // Hourly: the fan-out picks the businesses where it is now Monday WEEKLY_REPORT_HOUR local time.
+  await boss.schedule("weekly_report", "5 * * * *", null, { tz: "UTC" });
+  await boss.schedule("maintenance", "17 3 * * *", null, { tz: "UTC" });
+
   logger.info("worker started", { queues: Object.keys(handlers), concurrency: config.WORKER_CONCURRENCY });
 
   let stopping = false;
